@@ -9,6 +9,7 @@ from routers.news import router as news_router
 from routers.risk import router as risk_router
 from routers.assistant import router as assistant_router
 from routers.research import router as research_router
+from routers.backtest import router as backtest_router
 
 app = FastAPI(title="Sentinel AI Financial Sandbox", version="1.0.0")
 
@@ -30,6 +31,7 @@ app.include_router(news_router)
 app.include_router(risk_router)
 app.include_router(assistant_router)
 app.include_router(research_router)
+app.include_router(backtest_router)
 
 @app.get("/")
 async def root():

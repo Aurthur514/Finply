@@ -13,6 +13,7 @@ import {
   ChatBubbleLeftRightIcon,
   DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
+import { BeakerIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   activeTab: string;
@@ -27,6 +28,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
     { id: 'market', label: 'Market Overview', icon: GlobeAltIcon },
     { id: 'analysis', label: 'Technical Analysis', icon: ChartBarIcon },
     { id: 'predictions', label: 'AI Predictions', icon: MagnifyingGlassIcon },
+    { id: 'backtest', label: 'Backtesting Lab', icon: BeakerIcon },
     { id: 'research', label: 'Research Memo', icon: DocumentMagnifyingGlassIcon },
     { id: 'assistant', label: 'AI Copilot', icon: ChatBubbleLeftRightIcon },
     { id: 'news', label: 'News Intelligence', icon: NewspaperIcon },

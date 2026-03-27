@@ -21,6 +21,7 @@ import StockSearch from './components/StockSearch';
 import TechnicalAnalysis from './components/TechnicalAnalysis';
 import TradingPanel from './components/TradingPanel';
 import Watchlist from './components/Watchlist';
+import BacktestingDashboard from './components/BacktestingDashboard';
 
 interface NewsItem {
   title: string;
@@ -314,7 +315,7 @@ function App() {
       .slice(0, 3) || [];
   const dashboardChange = realizedPnL + unrealizedPnL;
   const dashboardChangePercent = totalValue > 0 ? (dashboardChange / Math.max(totalValue - dashboardChange, 1)) * 100 : 0;
-  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'risk', 'research'].includes(activeTab);
+  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'risk', 'research', 'backtest'].includes(activeTab);
   const selectedInWatchlist = watchlist.some((item) => item.symbol === selectedSymbol);
 
   const openBuyForSelected = () => stageTrade(selectedSymbol, 'buy');
@@ -576,6 +577,25 @@ function App() {
         {activeTab === 'predictions' && (
           <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
             <PredictionsDashboard defaultSymbol={selectedSymbol} />
+            <SelectedAssetRail
+              symbol={selectedSymbol}
+              latestPrice={latestPrice}
+              latestQuoteSource={latestQuoteSource}
+              inWatchlist={selectedInWatchlist}
+              disableTrading={isOfflinePrice}
+              onBuy={openBuyForSelected}
+              onSell={openSellForSelected}
+              onOpenAnalysis={() => setActiveTab('analysis')}
+              onOpenPredictions={() => setActiveTab('predictions')}
+              onOpenResearch={() => setActiveTab('research')}
+              onToggleWatchlist={toggleSelectedWatchlist}
+            />
+          </div>
+        )}
+
+        {activeTab === 'backtest' && (
+          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
+            <BacktestingDashboard defaultSymbol={selectedSymbol} />
             <SelectedAssetRail
               symbol={selectedSymbol}
               latestPrice={latestPrice}

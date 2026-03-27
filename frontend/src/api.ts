@@ -464,3 +464,81 @@ export interface NewsSummary {
   themes: NewsThemeBrief[];
   timeline: NewsSummaryHeadline[];
 }
+
+export interface BacktestStrategyDefinition {
+  key: string;
+  label: string;
+  description: string;
+}
+
+export interface BacktestTrade {
+  entry_date: string;
+  exit_date: string;
+  entry_price: number;
+  exit_price: number;
+  return_percent: number;
+  outcome: string;
+}
+
+export interface BacktestChartPoint {
+  date: string;
+  equity: number;
+  benchmark_equity?: number | null;
+  position: number;
+}
+
+export interface BacktestMetrics {
+  final_value: number;
+  total_return_percent: number;
+  cagr_percent: number;
+  sharpe_ratio: number;
+  max_drawdown_percent: number;
+  volatility_percent: number;
+  win_rate_percent: number;
+}
+
+export interface BacktestResponse {
+  symbol: string;
+  strategy: BacktestStrategyDefinition;
+  period: string;
+  interval: string;
+  initial_capital: number;
+  metrics: BacktestMetrics;
+  trade_count: number;
+  trades: BacktestTrade[];
+  chart: BacktestChartPoint[];
+  benchmark: {
+    symbol: string;
+    final_value: number;
+    return_percent: number;
+  };
+}
+
+export const backtestAPI = {
+  listStrategies: (forceRefresh = false) =>
+    getCachedRequest('backtest-strategies', () => api.get<BacktestStrategyDefinition[]>('/backtest/strategies'), 300000, forceRefresh),
+  runBacktest: (
+    symbol: string,
+    strategy: string,
+    period = '1y',
+    interval = '1d',
+    initialCapital = 10000,
+    benchmark?: string,
+    forceRefresh = false,
+  ) =>
+    getCachedRequest(
+      `backtest:${symbol.toUpperCase()}:${strategy}:${period}:${interval}:${initialCapital}:${benchmark || ''}`,
+      () =>
+        api.get<BacktestResponse>(`/backtest/run/${symbol}`, {
+          params: {
+            strategy,
+            period,
+            interval,
+            initial_capital: initialCapital,
+            benchmark,
+          },
+        }),
+      180000,
+      forceRefresh
+    ),
+};
