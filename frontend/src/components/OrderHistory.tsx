@@ -35,6 +35,8 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ trades, orders, loading = f
                 <th className="pb-3">Side</th>
                 <th className="pb-3">Quantity</th>
                 <th className="pb-3">Price</th>
+                <th className="pb-3">Fees</th>
+                <th className="pb-3">Slip</th>
                 <th className="pb-3">Total</th>
               </tr>
             </thead>
@@ -46,12 +48,14 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ trades, orders, loading = f
                   <td className={`py-3 font-medium ${trade.side === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{trade.side.toUpperCase()}</td>
                   <td className="py-3 text-slate-600">{trade.quantity}</td>
                   <td className="py-3 text-slate-600">${trade.price.toFixed(2)}</td>
+                  <td className="py-3 text-slate-600">${trade.fees.toFixed(2)}</td>
+                  <td className="py-3 text-slate-600">${trade.slippage.toFixed(2)}</td>
                   <td className="py-3 text-slate-600">${trade.total.toFixed(2)}</td>
                 </tr>
               ))}
               {trades.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">
+                  <td colSpan={8} className="py-8 text-center text-slate-500">
                     No trades yet.
                   </td>
                 </tr>
@@ -75,7 +79,9 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ trades, orders, loading = f
                 <th className="pb-3">Type</th>
                 <th className="pb-3">Side</th>
                 <th className="pb-3">Qty</th>
-                <th className="pb-3">Price</th>
+                <th className="pb-3">Fill</th>
+                <th className="pb-3">Fees</th>
+                <th className="pb-3">Slip</th>
                 <th className="pb-3">Status</th>
               </tr>
             </thead>
@@ -87,7 +93,14 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ trades, orders, loading = f
                   <td className="py-3 text-slate-600">{order.order_type.toUpperCase()}</td>
                   <td className={`py-3 font-medium ${order.side === 'buy' ? 'text-emerald-600' : 'text-rose-600'}`}>{order.side.toUpperCase()}</td>
                   <td className="py-3 text-slate-600">{order.quantity}</td>
-                  <td className="py-3 text-slate-600">${order.price.toFixed(2)}</td>
+                  <td className="py-3 text-slate-600">
+                    ${order.price.toFixed(2)}
+                    {order.requested_price > 0 && order.requested_price !== order.price && (
+                      <div className="text-xs text-slate-400">req ${order.requested_price.toFixed(2)}</div>
+                    )}
+                  </td>
+                  <td className="py-3 text-slate-600">${order.fees.toFixed(2)}</td>
+                  <td className="py-3 text-slate-600">${order.slippage.toFixed(2)}</td>
                   <td className="py-3">
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700">{order.status.toUpperCase()}</span>
                   </td>
@@ -95,7 +108,7 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ trades, orders, loading = f
               ))}
               {orders.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={9} className="py-8 text-center text-slate-500">
                     No orders yet.
                   </td>
                 </tr>

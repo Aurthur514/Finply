@@ -63,6 +63,10 @@ class Order(Base):
     order_type = Column(Enum(OrderType), nullable=False)
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
+    requested_price = Column(Float, nullable=False, default=0.0)
+    executed_price = Column(Float, nullable=False, default=0.0)
+    fees = Column(Float, nullable=False, default=0.0)
+    slippage = Column(Float, nullable=False, default=0.0)
     status = Column(Enum(OrderStatus), nullable=False, default=OrderStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -98,6 +102,10 @@ class Trade(Base):
     symbol = Column(String, nullable=False, index=True)
     price = Column(Float, nullable=False)
     quantity = Column(Integer, nullable=False)
+    gross_total = Column(Float, nullable=False, default=0.0)
+    net_total = Column(Float, nullable=False, default=0.0)
+    fees = Column(Float, nullable=False, default=0.0)
+    slippage = Column(Float, nullable=False, default=0.0)
     side = Column(Enum(OrderSide), nullable=False)
     timestamp = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -146,10 +154,27 @@ def init_db() -> None:
 
     if "trades" in inspector.get_table_names():
         trade_columns = {column["name"] for column in inspector.get_columns("trades")}
-        expected_trade_columns = {"id", "order_id", "user_id", "symbol", "price", "quantity", "side", "timestamp"}
-        if trade_columns and trade_columns != expected_trade_columns:
-            with engine.begin() as connection:
-                connection.execute(text("DROP TABLE trades"))
+        for column_name, default_value in {
+            "gross_total": 0,
+            "net_total": 0,
+            "fees": 0,
+            "slippage": 0,
+        }.items():
+            if column_name not in trade_columns:
+                with engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE trades ADD COLUMN {column_name} FLOAT DEFAULT {default_value}"))
+
+    if "orders" in inspector.get_table_names():
+        order_columns = {column["name"] for column in inspector.get_columns("orders")}
+        for column_name, default_value in {
+            "requested_price": 0,
+            "executed_price": 0,
+            "fees": 0,
+            "slippage": 0,
+        }.items():
+            if column_name not in order_columns:
+                with engine.begin() as connection:
+                    connection.execute(text(f"ALTER TABLE orders ADD COLUMN {column_name} FLOAT DEFAULT {default_value}"))
 
     Base.metadata.create_all(bind=engine)
 

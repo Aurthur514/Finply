@@ -121,6 +121,10 @@ export interface OrderResponse {
   order_type: 'market' | 'limit';
   quantity: number;
   price: number;
+  requested_price: number;
+  executed_price: number;
+  fees: number;
+  slippage: number;
   status: 'pending' | 'filled' | 'rejected' | 'cancelled';
   created_at: string;
 }
@@ -132,6 +136,10 @@ export interface TradeResponse {
   side: 'buy' | 'sell';
   quantity: number;
   price: number;
+  gross_total: number;
+  net_total: number;
+  fees: number;
+  slippage: number;
   total: number;
   timestamp: string;
 }

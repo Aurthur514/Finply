@@ -151,10 +151,13 @@ const TradingPanel: React.FC<TradingPanelProps> = ({
       </div>
 
       <div className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-600">
-        {orderType === 'market' ? 'Market orders execute at the latest available price.' : 'Limit orders fill only when the market reaches your limit.'}
+        {orderType === 'market' ? 'Market orders execute near the latest available price with simulated slippage.' : 'Limit orders fill only when the market reaches your limit and still include smaller simulated slippage.'}
         {estimatedTotal !== null && (
           <div className="mt-2 font-medium text-slate-900">Estimated notional: ${estimatedTotal.toFixed(2)}</div>
         )}
+        <div className="mt-2 text-xs text-slate-500">
+          Paper execution now includes simulated fees and slippage to make fills more realistic.
+        </div>
       </div>
 
       {isOfflinePrice && (
@@ -185,6 +188,7 @@ const TradingPanel: React.FC<TradingPanelProps> = ({
               <div>Order Type: <span className="font-medium text-slate-900">{orderType.toUpperCase()}</span></div>
               <div>Quantity: <span className="font-medium text-slate-900">{quantity}</span></div>
               {orderType === 'limit' && <div>Limit Price: <span className="font-medium text-slate-900">${Number(limitPrice).toFixed(2)}</span></div>}
+              <div className="text-xs text-slate-500">Execution may include simulated fees and slippage.</div>
             </div>
             <div className="mt-6 flex gap-3">
               <button

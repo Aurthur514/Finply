@@ -9,6 +9,11 @@ from models import Order, OrderSide, OrderStatus, OrderType, Position, Trade, Us
 
 
 class TradingEngine:
+    BASE_FEE_RATE = 0.0008
+    MIN_FEE = 1.0
+    BASE_SLIPPAGE_RATE = 0.0005
+    MAX_SLIPPAGE_RATE = 0.005
+
     def __init__(self, db_session: Session):
         self.db = db_session
         self.market_service = MarketDataService()
@@ -49,15 +54,19 @@ class TradingEngine:
 
         quote = self._get_quote(symbol)
         market_price = quote["price"]
-        execution_price = market_price if order_type == OrderType.MARKET else float(limit_price or 0)
+        requested_price = market_price if order_type == OrderType.MARKET else float(limit_price or 0)
 
         if order_type == OrderType.LIMIT and not limit_price:
             raise ValueError("Limit price is required for limit orders")
 
+        estimated_execution = self._estimate_execution(symbol, side, requested_price, quantity, order_type)
+
         if side == OrderSide.BUY:
-            estimated_cost = execution_price * quantity
+            estimated_cost = estimated_execution["net_cash"]
             if user.balance < estimated_cost:
-                raise ValueError("Insufficient balance")
+                raise ValueError(
+                    f"Insufficient balance. Estimated fill requires ${estimated_cost:.2f} including fees and slippage."
+                )
         else:
             position = self.db.query(Position).filter(
                 Position.user_id == user_id,
@@ -66,14 +75,18 @@ class TradingEngine:
             if not position or position.quantity < quantity:
                 raise ValueError("Insufficient shares to sell")
 
-        status = self._resolve_order_status(order_type, side, market_price, execution_price)
+        status = self._resolve_order_status(order_type, side, market_price, requested_price)
         order = Order(
             user_id=user_id,
             symbol=symbol,
             side=side,
             order_type=order_type,
             quantity=quantity,
-            price=execution_price if status == OrderStatus.FILLED else float(limit_price or market_price),
+            price=estimated_execution["executed_price"] if status == OrderStatus.FILLED else float(limit_price or market_price),
+            requested_price=requested_price,
+            executed_price=estimated_execution["executed_price"] if status == OrderStatus.FILLED else 0.0,
+            fees=estimated_execution["fees"] if status == OrderStatus.FILLED else 0.0,
+            slippage=estimated_execution["slippage_value"] if status == OrderStatus.FILLED else 0.0,
             status=status,
         )
         self.db.add(order)
@@ -81,7 +94,7 @@ class TradingEngine:
 
         trade_payload = None
         if status == OrderStatus.FILLED:
-            trade_payload = self._execute_order(user, order, market_price if order_type == OrderType.MARKET else execution_price)
+            trade_payload = self._execute_order(user, order, estimated_execution)
 
         self.db.commit()
         self.db.refresh(order)
@@ -91,7 +104,7 @@ class TradingEngine:
             "trade": trade_payload,
             "portfolio": self.get_portfolio(user_id),
             "quote": quote,
-            "message": "Order executed successfully" if trade_payload else "Limit order is pending",
+            "message": self._build_order_message(trade_payload) if trade_payload else "Limit order is pending",
         }
 
     def cancel_order(self, user_id: int, order_id: int) -> Dict[str, Any]:
@@ -175,7 +188,11 @@ class TradingEngine:
                 "side": trade.side.value,
                 "quantity": trade.quantity,
                 "price": round(trade.price, 2),
-                "total": round(trade.price * trade.quantity, 2),
+                "gross_total": round(trade.gross_total, 2),
+                "net_total": round(trade.net_total, 2),
+                "fees": round(trade.fees, 2),
+                "slippage": round(trade.slippage, 2),
+                "total": round(trade.net_total, 2),
                 "timestamp": trade.timestamp.isoformat(),
             }
             for trade in trades
@@ -221,6 +238,10 @@ class TradingEngine:
             "order_type": order.order_type.value,
             "quantity": order.quantity,
             "price": round(order.price, 2),
+            "requested_price": round(order.requested_price, 2),
+            "executed_price": round(order.executed_price, 2),
+            "fees": round(order.fees, 2),
+            "slippage": round(order.slippage, 2),
             "status": order.status.value,
             "created_at": order.created_at.isoformat(),
         }
@@ -252,8 +273,12 @@ class TradingEngine:
             return OrderStatus.FILLED
         return OrderStatus.PENDING
 
-    def _execute_order(self, user: User, order: Order, execution_price: float) -> Dict[str, Any]:
-        trade_value = execution_price * order.quantity
+    def _execute_order(self, user: User, order: Order, execution: Dict[str, float]) -> Dict[str, Any]:
+        execution_price = execution["executed_price"]
+        gross_value = execution["gross_value"]
+        fees = execution["fees"]
+        net_cash = execution["net_cash"]
+        slippage_value = execution["slippage_value"]
 
         position = self.db.query(Position).filter(
             Position.user_id == user.id,
@@ -261,9 +286,9 @@ class TradingEngine:
         ).first()
 
         if order.side == OrderSide.BUY:
-            user.balance -= trade_value
+            user.balance -= net_cash
             if position:
-                total_cost = (position.avg_price * position.quantity) + trade_value
+                total_cost = (position.avg_price * position.quantity) + net_cash
                 position.quantity += order.quantity
                 position.avg_price = total_cost / position.quantity
             else:
@@ -277,8 +302,8 @@ class TradingEngine:
         else:
             if not position or position.quantity < order.quantity:
                 raise ValueError("Insufficient shares to sell")
-            user.balance += trade_value
-            realized = (execution_price - position.avg_price) * order.quantity
+            user.balance += net_cash
+            realized = ((execution_price - position.avg_price) * order.quantity) - fees
             user.realized_pnl += realized
             position.quantity -= order.quantity
             if position.quantity == 0:
@@ -286,6 +311,9 @@ class TradingEngine:
 
         order.status = OrderStatus.FILLED
         order.price = execution_price
+        order.executed_price = execution_price
+        order.fees = fees
+        order.slippage = slippage_value
 
         trade = Trade(
             order_id=order.id,
@@ -293,6 +321,10 @@ class TradingEngine:
             symbol=order.symbol,
             price=execution_price,
             quantity=order.quantity,
+            gross_total=gross_value,
+            net_total=net_cash,
+            fees=fees,
+            slippage=slippage_value,
             side=order.side,
         )
         self.db.add(trade)
@@ -305,9 +337,61 @@ class TradingEngine:
             "side": trade.side.value,
             "quantity": trade.quantity,
             "price": round(trade.price, 2),
-            "total": round(trade.price * trade.quantity, 2),
+            "gross_total": round(trade.gross_total, 2),
+            "net_total": round(trade.net_total, 2),
+            "fees": round(trade.fees, 2),
+            "slippage": round(trade.slippage, 2),
+            "total": round(trade.net_total, 2),
             "timestamp": trade.timestamp.isoformat() if trade.timestamp else None,
         }
+
+    def _estimate_execution(
+        self,
+        symbol: str,
+        side: OrderSide,
+        reference_price: float,
+        quantity: int,
+        order_type: OrderType,
+    ) -> Dict[str, float]:
+        quote = self.market_service.get_quote(symbol) or {}
+        daily_move = quote.get("change_percent")
+        if isinstance(daily_move, str):
+            daily_move = daily_move.replace("%", "").strip()
+        try:
+            daily_move_value = abs(float(daily_move or 0.0))
+        except (TypeError, ValueError):
+            daily_move_value = 0.0
+
+        size_component = min(quantity / 5000, 1.0)
+        volatility_component = min(daily_move_value / 8.0, 1.0)
+        slippage_rate = self.BASE_SLIPPAGE_RATE + (size_component * 0.0025) + (volatility_component * 0.0015)
+        if order_type == OrderType.LIMIT:
+            slippage_rate *= 0.45
+        slippage_rate = min(slippage_rate, self.MAX_SLIPPAGE_RATE)
+
+        executed_price = reference_price * (1 + slippage_rate if side == OrderSide.BUY else 1 - slippage_rate)
+        gross_value = executed_price * quantity
+        fees = max(self.MIN_FEE, gross_value * self.BASE_FEE_RATE)
+        slippage_value = abs(executed_price - reference_price) * quantity
+        net_cash = gross_value + fees if side == OrderSide.BUY else gross_value - fees
+
+        return {
+            "reference_price": reference_price,
+            "executed_price": executed_price,
+            "gross_value": gross_value,
+            "fees": fees,
+            "slippage_rate": slippage_rate,
+            "slippage_value": slippage_value,
+            "net_cash": net_cash,
+        }
+
+    def _build_order_message(self, trade_payload: Optional[Dict[str, Any]]) -> str:
+        if not trade_payload:
+            return "Limit order is pending"
+        return (
+            f"Order executed at ${trade_payload['price']:.2f}. "
+            f"Fees: ${trade_payload['fees']:.2f}, slippage impact: ${trade_payload['slippage']:.2f}."
+        )
 
     def _get_quote(self, symbol: str) -> Dict[str, Any]:
         quote = self.market_service.get_quote(symbol)
