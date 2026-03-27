@@ -1,0 +1,12 @@
+.tmp/
+backend/__pycache__/
+backend/*.log
+backend/.env
+backend/venv/
+frontend/build/
+frontend/frontend.err.log
+frontend/frontend.out.log
+frontend/node_modules/
+node_modules/
+sentinel.db
+*.pyc

@@ -1,0 +1,26 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./finance_app.db
+      - NGROK_AUTH_TOKEN=${NGROK_AUTH_TOKEN:-}
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    networks:
+      - finance-network
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+    networks:
+      - finance-network
+
+networks:
+  finance-network:
+    driver: bridge
