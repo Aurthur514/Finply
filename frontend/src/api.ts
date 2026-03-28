@@ -550,3 +550,104 @@ export const backtestAPI = {
       forceRefresh
     ),
 };
+
+export interface ScenarioPressurePoint {
+  name: string;
+  impact_score: number;
+  relationship: string;
+  type: string;
+}
+
+export interface ScenarioBranch {
+  target_price: number;
+  return_percent: number;
+}
+
+export interface ScenarioResponse {
+  symbol: string;
+  seed_event: string;
+  horizon_days: number;
+  mode: string;
+  bias_score: number;
+  variables: string[];
+  overview: {
+    current_price: number;
+    source?: string;
+    signal?: string;
+    confidence?: number;
+  };
+  scenario_tree: {
+    bull: ScenarioBranch;
+    base: ScenarioBranch;
+    bear: ScenarioBranch;
+  };
+  pressure_map: ScenarioPressurePoint[];
+  simulation_report: {
+    executive_take: string;
+    world_state: string;
+    critical_paths: string[];
+    warning_flags: string[];
+    decision_playbook: string[];
+  };
+}
+
+export interface ScenarioSeed {
+  headline?: string;
+  summary?: string;
+  published_at?: string;
+  seed_event: string;
+  variables: string[];
+  sentiment: string;
+  confidence: number;
+  company_name?: string;
+  impact_summary?: string;
+  why_it_matters?: string;
+  effect_path?: string;
+}
+
+export interface ScenarioSeedResponse {
+  symbol: string;
+  company_name?: string;
+  days: number;
+  overall_sentiment?: string;
+  theme_brief?: Array<{
+    theme: string;
+    impact_score: number;
+    direction: string;
+    strength: number;
+  }>;
+  seeds: ScenarioSeed[];
+}
+
+export const scenarioAPI = {
+  runScenario: (
+    symbol: string,
+    seedEvent: string,
+    horizonDays = 30,
+    variables: string[] = [],
+    forceRefresh = false,
+  ) =>
+    getCachedRequest(
+      `scenario:${symbol.toUpperCase()}:${seedEvent}:${horizonDays}:${variables.join('|')}`,
+      () =>
+        api.get<ScenarioResponse>(`/scenario/simulate/${symbol}`, {
+          params: {
+            seed_event: seedEvent,
+            horizon_days: horizonDays,
+            variables,
+          },
+        }),
+      120000,
+      forceRefresh
+    ),
+  getScenarioSeeds: (symbol: string, days = 3, forceRefresh = false) =>
+    getCachedRequest(
+      `scenario-seeds:${symbol.toUpperCase()}:${days}`,
+      () =>
+        api.get<ScenarioSeedResponse>(`/scenario/seeds/${symbol}`, {
+          params: { days },
+        }),
+      120000,
+      forceRefresh
+    ),
+};

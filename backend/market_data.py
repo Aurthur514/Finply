@@ -61,6 +61,32 @@ class MarketDataService:
             "SBIN": {"yahoo": "SBIN.NS", "exchange": "NSE", "name": "State Bank of India"},
             "ICICIBANK": {"yahoo": "ICICIBANK.NS", "exchange": "NSE", "name": "ICICI Bank"},
         }
+        self.us_equity_aliases = {
+            "AAPL": {"name": "Apple Inc.", "exchange": "NASDAQ"},
+            "GOOGL": {"name": "Alphabet Inc.", "exchange": "NASDAQ"},
+            "MSFT": {"name": "Microsoft Corporation", "exchange": "NASDAQ"},
+            "TSLA": {"name": "Tesla Inc.", "exchange": "NASDAQ"},
+            "AMZN": {"name": "Amazon.com Inc.", "exchange": "NASDAQ"},
+            "NVDA": {"name": "NVIDIA Corporation", "exchange": "NASDAQ"},
+            "META": {"name": "Meta Platforms Inc.", "exchange": "NASDAQ"},
+            "NFLX": {"name": "Netflix Inc.", "exchange": "NASDAQ"},
+            "AMD": {"name": "Advanced Micro Devices", "exchange": "NASDAQ"},
+            "INTC": {"name": "Intel Corporation", "exchange": "NASDAQ"},
+            "ORCL": {"name": "Oracle Corporation", "exchange": "NYSE"},
+            "CRM": {"name": "Salesforce Inc.", "exchange": "NYSE"},
+            "UBER": {"name": "Uber Technologies Inc.", "exchange": "NYSE"},
+            "LYFT": {"name": "Lyft Inc.", "exchange": "NASDAQ"},
+            "SPOT": {"name": "Spotify Technology", "exchange": "NYSE"},
+            "PYPL": {"name": "PayPal Holdings", "exchange": "NASDAQ"},
+            "SQ": {"name": "Block Inc.", "exchange": "NYSE"},
+            "SHOP": {"name": "Shopify Inc.", "exchange": "NASDAQ"},
+            "ZM": {"name": "Zoom Communications", "exchange": "NASDAQ"},
+            "DOCU": {"name": "DocuSign Inc.", "exchange": "NASDAQ"},
+            "COIN": {"name": "Coinbase Global", "exchange": "NASDAQ"},
+            "MSTR": {"name": "MicroStrategy Incorporated", "exchange": "NASDAQ"},
+            "RIOT": {"name": "Riot Platforms", "exchange": "NASDAQ"},
+            "BABA": {"name": "Alibaba Group Holding", "exchange": "NYSE"},
+        }
         self._fx_cache = MarketDataService._shared_fx_cache
         self._data_cache = MarketDataService._shared_data_cache
         self._provider_metrics = MarketDataService._shared_provider_metrics
@@ -152,7 +178,7 @@ class MarketDataService:
                 "configured": True,
             },
             "offline_feed": {
-                "label": "Sentinel Offline Feed",
+                "label": "Finply Offline Feed",
                 "enabled": True,
                 "configured": True,
             },
@@ -250,6 +276,9 @@ class MarketDataService:
         alias = self.india_equity_aliases.get(normalized)
         if alias:
             return f"{alias['name']} ({alias['exchange']})"
+        us_alias = self.us_equity_aliases.get(normalized)
+        if us_alias:
+            return f"{us_alias['name']} ({us_alias['exchange']})"
         for base_symbol, details in self.india_equity_aliases.items():
             if normalized == details["yahoo"]:
                 return f"{details['name']} ({details['exchange']})"
@@ -619,6 +648,95 @@ class MarketDataService:
                 break
         return results
 
+    def _search_stocks_from_yahoo(self, query: str, limit: int = 10) -> List[Dict]:
+        payload = self._http_get_json(
+            "https://query1.finance.yahoo.com/v1/finance/search",
+            params={"q": query, "quotesCount": max(limit * 2, 10), "newsCount": 0},
+            timeout_seconds=2.2,
+        )
+        items = payload.get("quotes") or []
+        if not isinstance(items, list):
+            return []
+
+        allowed_quote_types = {"EQUITY", "ETF"}
+        results: List[Dict] = []
+        seen_symbols: set[str] = set()
+        for item in items:
+            raw_symbol = str(item.get("symbol") or "").upper().strip()
+            quote_type = str(item.get("quoteType") or "").upper().strip()
+            if not raw_symbol or quote_type not in allowed_quote_types:
+                continue
+
+            symbol = self._display_stock_symbol(raw_symbol)
+            if symbol in seen_symbols:
+                continue
+
+            exchange = (
+                item.get("exchange")
+                or item.get("exchDisp")
+                or item.get("exchangeDisplay")
+                or self._exchange_for_symbol(raw_symbol)
+            )
+            name = str(
+                item.get("shortname")
+                or item.get("longname")
+                or item.get("name")
+                or self._resolve_search_label(raw_symbol)
+                or symbol
+            ).strip()
+
+            results.append(
+                {
+                    "symbol": symbol,
+                    "name": name,
+                    "type": "stock",
+                    "price": None,
+                    "change_percent": None,
+                    "exchange": exchange,
+                }
+            )
+            seen_symbols.add(symbol)
+            if len(results) >= limit:
+                break
+
+        return results
+
+    def _search_score(self, query: str, symbol: str, name: str) -> int:
+        query_normalized = query.strip().lower()
+        symbol_normalized = symbol.strip().lower()
+        name_normalized = name.strip().lower()
+
+        if not query_normalized:
+            return 0
+        if symbol_normalized == query_normalized:
+            return 100
+        if name_normalized == query_normalized:
+            return 98
+        if name_normalized.startswith(query_normalized):
+            return 92
+        if symbol_normalized.startswith(query_normalized):
+            return 90
+        if f" {query_normalized}" in name_normalized or query_normalized in name_normalized:
+            return 80
+        if query_normalized in symbol_normalized:
+            return 70
+        return 10
+
+    def _build_local_stock_match(self, symbol: str) -> Optional[Dict]:
+        quote = self.get_stock_quote(symbol)
+        if not quote:
+            return None
+
+        display_symbol = self._display_stock_symbol(symbol)
+        return {
+            "symbol": display_symbol,
+            "name": self._resolve_search_label(symbol),
+            "type": "stock",
+            "price": quote.get("price"),
+            "change_percent": quote.get("change_percent"),
+            "exchange": self._exchange_for_symbol(symbol) or self.us_equity_aliases.get(display_symbol, {}).get("exchange"),
+        }
+
     def is_supported_symbol(self, symbol: str) -> bool:
         return self._is_known_stock(symbol) or self._is_known_crypto(symbol)
 
@@ -656,7 +774,7 @@ class MarketDataService:
             "pe_ratio": None,
             "dividend_yield": None,
             "timestamp": datetime.now().isoformat(),
-            "source": "Sentinel Offline Feed",
+            "source": "Finply Offline Feed",
             "currency": "USD",
             "native_currency": native_currency,
             "fx_rate": round(self._get_fx_rate_to_usd(native_currency), 4),
@@ -1181,8 +1299,38 @@ class MarketDataService:
         if not query:
             return []
 
-        results = []
+        ranked_results: List[tuple[int, Dict]] = []
         seen_symbols: set[str] = set()
+        query_upper = query.upper()
+        query_lower = query.lower()
+
+        def add_ranked_result(item: Dict):
+            symbol = str(item.get("symbol") or "").upper().strip()
+            if not symbol or symbol in seen_symbols:
+                return
+            seen_symbols.add(symbol)
+            ranked_results.append((self._search_score(query, symbol, str(item.get("name") or symbol)), item))
+
+        # Prioritize curated local aliases first so obvious names win.
+        for base_symbol, details in self.us_equity_aliases.items():
+            if (
+                query_upper == base_symbol
+                or query_lower in details["name"].lower()
+                or details["name"].lower().startswith(query_lower)
+            ):
+                item = self._build_local_stock_match(base_symbol)
+                if item:
+                    add_ranked_result(item)
+
+        for base_symbol, details in self.india_equity_aliases.items():
+            if (
+                query_upper == base_symbol
+                or query_lower in details["name"].lower()
+                or details["name"].lower().startswith(query_lower)
+            ):
+                item = self._build_local_stock_match(base_symbol)
+                if item:
+                    add_ranked_result(item)
 
         # Search stocks from external provider first when configured
         try:
@@ -1192,48 +1340,59 @@ class MarketDataService:
                 if quote:
                     item["price"] = quote.get("price")
                     item["change_percent"] = quote.get("change_percent")
-                if symbol not in seen_symbols:
-                    results.append(item)
-                    seen_symbols.add(symbol)
-                if len(results) >= limit:
-                    return results[:limit]
+                add_ranked_result(item)
         except Exception as e:
             print(f"Error searching stocks from FMP for {query}: {e}")
 
+        try:
+            remaining = max(limit * 2 - len(ranked_results), 0)
+            if remaining > 0:
+                for item in self._search_stocks_from_yahoo(query, limit=remaining):
+                    symbol = item["symbol"]
+                    quote = self.get_stock_quote(symbol)
+                    if quote:
+                        item["price"] = quote.get("price")
+                        item["change_percent"] = quote.get("change_percent")
+                    add_ranked_result(item)
+        except Exception as e:
+            print(f"Error searching stocks from Yahoo for {query}: {e}")
+
         # Search stocks
         for stock in self.popular_stocks:
-            if query.upper() in stock.upper():
-                quote = self.get_stock_quote(stock)
-                if quote:
-                    display_symbol = self._display_stock_symbol(stock)
-                    label = self._resolve_search_label(stock)
-                    if display_symbol not in seen_symbols:
-                        results.append({
-                            "symbol": display_symbol,
-                            "name": label,
-                            "type": "stock",
-                            "price": quote['price'],
-                            "change_percent": quote['change_percent'],
-                            "exchange": self._exchange_for_symbol(stock),
-                        })
-                        seen_symbols.add(display_symbol)
+            stock_label = self._resolve_search_label(stock)
+            if query_upper in stock.upper() or query_lower in stock_label.lower():
+                item = self._build_local_stock_match(stock)
+                if item:
+                    add_ranked_result(item)
+
+        for base_symbol, details in self.india_equity_aliases.items():
+            label = f"{details['name']} ({details['exchange']})"
+            if query_upper not in base_symbol and query_lower not in details["name"].lower():
+                continue
+            add_ranked_result({
+                "symbol": base_symbol,
+                "name": label,
+                "type": "stock",
+                "price": None,
+                "change_percent": None,
+                "exchange": details["exchange"],
+            })
 
         # Search cryptos
         for crypto in self.popular_cryptos:
-            if query.upper() in crypto.upper():
+            if query_upper in crypto.upper():
                 quote = self.get_crypto_quote(crypto)
                 if quote:
-                    if crypto not in seen_symbols:
-                        results.append({
-                            "symbol": crypto,
-                            "name": f"{crypto} Coin",
-                            "type": "crypto",
-                            "price": quote['price'],
-                            "change_percent": quote['change_percent']
-                        })
-                        seen_symbols.add(crypto)
+                    add_ranked_result({
+                        "symbol": crypto,
+                        "name": f"{crypto} Coin",
+                        "type": "crypto",
+                        "price": quote['price'],
+                        "change_percent": quote['change_percent']
+                    })
 
-        return results[:limit]
+        ranked_results.sort(key=lambda item: (-item[0], item[1]["symbol"]))
+        return [item for _, item in ranked_results[:limit]]
 
     def get_top_movers(self, limit: int = 10) -> Dict:
         """Get top gaining and losing stocks/cryptos"""

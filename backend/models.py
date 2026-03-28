@@ -41,7 +41,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String, nullable=False, default="Sentinel User")
+    name = Column(String, nullable=False, default="Finply User")
     email = Column(String, unique=True, index=True, nullable=False)
     balance = Column(Float, nullable=False, default=100000.0)
     realized_pnl = Column(Float, nullable=False, default=0.0)

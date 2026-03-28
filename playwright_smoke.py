@@ -6,7 +6,7 @@ from playwright.sync_api import sync_playwright
 
 
 def main() -> int:
-    target_url = sys.argv[1] if len(sys.argv) > 1 else "data:text/html,<title>Playwright Smoke Test</title><h1>Sentinel OK</h1>"
+    target_url = sys.argv[1] if len(sys.argv) > 1 else "data:text/html,<title>Playwright Smoke Test</title><h1>Finply OK</h1>"
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)

@@ -49,9 +49,9 @@ def main() -> int:
 
         result["selected_symbol"] = text_or_empty(page.locator("text=Selected:").locator(".."))
         result["active_asset_price"] = text_or_empty(page.locator("text=ACTIVE ASSET").locator("..").locator("div").nth(3))
-        source_badges = page.locator("text=Sentinel Offline Feed")
+        source_badges = page.locator("text=Finply Offline Feed")
         if source_badges.count():
-            result["active_asset_source"] = "Sentinel Offline Feed"
+            result["active_asset_source"] = "Finply Offline Feed"
         else:
             result["active_asset_source"] = text_or_empty(page.locator("text=ACTIVE ASSET").locator("..").locator("div").nth(4))
         result["offline_warning"] = page.locator("text=Price is from fallback market data").count() > 0

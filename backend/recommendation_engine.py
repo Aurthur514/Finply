@@ -115,7 +115,7 @@ class RecommendationEngine:
             "reasoning": rationale,
             "risk_summary": global_context["risk_summary"],
             "catalysts": [driver["name"] for driver in global_context["top_positive_drivers"][:3]],
-            "provider": "Sentinel Quant Engine",
+            "provider": "Finply Quant Engine",
             "model": "macro-aware-v2",
             "components": baseline_prediction.get("components", {}),
             "timestamp": baseline_prediction.get("timestamp"),

@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Sentinel AI Financial Sandbox - Deployment Script
+# Finply AI Financial Sandbox - Deployment Script
 
 set -e
 
-echo "🚀 Starting Sentinel AI Financial Sandbox deployment..."
+echo "🚀 Starting Finply AI Financial Sandbox deployment..."
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then

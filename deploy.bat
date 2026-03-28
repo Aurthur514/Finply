@@ -1,7 +1,7 @@
 @echo off
-REM Sentinel AI Financial Sandbox - Windows Deployment Script
+REM Finply AI Financial Sandbox - Windows Deployment Script
 
-echo 🚀 Starting Sentinel AI Financial Sandbox deployment...
+echo 🚀 Starting Finply AI Financial Sandbox deployment...
 
 REM Check if Docker is installed
 docker --version >nul 2>&1

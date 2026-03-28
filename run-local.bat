@@ -12,7 +12,8 @@ set "FRONTEND_OUT=%FRONTEND_DIR%\frontend.out.log"
 set "FRONTEND_ERR=%FRONTEND_DIR%\frontend.err.log"
 set "MODE=%~1"
 
-if "%MODE%"=="" set "MODE=sentinel"
+if "%MODE%"=="" set "MODE=finply"
+if /I "%MODE%"=="sentinel" set "MODE=finply"
 
 if exist "%BACKEND_DIR%\venv\Scripts\python.exe" (
   set "PYTHON_CMD=%BACKEND_DIR%\venv\Scripts\python.exe"
@@ -20,17 +21,17 @@ if exist "%BACKEND_DIR%\venv\Scripts\python.exe" (
 
 if /I "%MODE%"=="gauss" goto start_gauss
 if /I "%MODE%"=="all" goto start_all
-if /I not "%MODE%"=="sentinel" (
+if /I not "%MODE%"=="finply" (
   echo Unknown mode "%MODE%".
   echo Usage:
   echo   run-local.bat
-  echo   run-local.bat sentinel
+  echo   run-local.bat finply
   echo   run-local.bat gauss
   echo   run-local.bat all
   exit /b 1
 )
 
-:start_sentinel
+:start_finply
 if not exist "%BACKEND_DIR%\requirements.txt" (
   echo Backend requirements file not found at "%BACKEND_DIR%\requirements.txt".
   exit /b 1
@@ -42,11 +43,11 @@ if not exist "%FRONTEND_DIR%\package.json" (
 )
 
 echo Using backend Python: %PYTHON_CMD%
-echo Starting Sentinel backend...
-start "Sentinel Backend" /D "%BACKEND_DIR%" cmd /k ""%PYTHON_CMD%" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload 1>>"%BACKEND_OUT%" 2>>"%BACKEND_ERR%"""
+echo Starting Finply backend...
+start "Finply Backend" /D "%BACKEND_DIR%" cmd /k ""%PYTHON_CMD%" -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload 1>>"%BACKEND_OUT%" 2>>"%BACKEND_ERR%"""
 
-echo Starting Sentinel frontend...
-start "Sentinel Frontend" /D "%FRONTEND_DIR%" cmd /k "npm.cmd start 1>>"%FRONTEND_OUT%" 2>>"%FRONTEND_ERR%""
+echo Starting Finply frontend...
+start "Finply Frontend" /D "%FRONTEND_DIR%" cmd /k "npm.cmd start 1>>"%FRONTEND_OUT%" 2>>"%FRONTEND_ERR%""
 
 echo.
 echo Backend:  http://127.0.0.1:8000
@@ -76,7 +77,7 @@ echo Close the opened window to stop the analysis session.
 exit /b 0
 
 :start_all
-call "%~f0" sentinel
+call "%~f0" finply
 if errorlevel 1 exit /b 1
 call "%~f0" gauss
 exit /b %errorlevel%

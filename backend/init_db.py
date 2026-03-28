@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Database initialization script for Sentinel AI Financial Sandbox
+Database initialization script for Finply AI Financial Sandbox
 Supports both local SQLite and Supabase PostgreSQL databases
 """
 

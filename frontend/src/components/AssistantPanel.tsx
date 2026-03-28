@@ -40,7 +40,7 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({ selectedSymbol, userId 
     {
       id: 1,
       role: 'assistant',
-      text: `I am your Sentinel investing copilot. Ask me to analyze ${selectedSymbol}, summarize your portfolio, or explain trade risk.`,
+      text: `I am your Finply investing copilot. Ask me to analyze ${selectedSymbol}, summarize your portfolio, or explain trade risk.`,
     },
   ]);
   const [input, setInput] = useState('');
@@ -274,7 +274,7 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({ selectedSymbol, userId 
               <ChatBubbleLeftRightIcon className="h-5 w-5" />
             </div>
             <div>
-              <div className="text-lg font-semibold text-slate-950">Sentinel Copilot</div>
+              <div className="text-lg font-semibold text-slate-950">Finply Copilot</div>
               <div className="text-sm text-slate-500">Chat and voice-input investing assistant grounded in your app data.</div>
             </div>
           </div>

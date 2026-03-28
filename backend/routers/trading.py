@@ -20,7 +20,7 @@ def get_db():
 
 
 class UserCreateRequest(BaseModel):
-    name: str = Field(default="Sentinel User")
+    name: str = Field(default="Finply User")
     email: str
     initial_balance: float = Field(default=100000.0, gt=0)
 

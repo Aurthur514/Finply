@@ -1,5 +1,5 @@
 """
-Hedge Fund Style AI Prediction System for Sentinel
+Hedge Fund Style AI Prediction System for Finply
 Combines technical analysis, news sentiment, and time series models
 """
 

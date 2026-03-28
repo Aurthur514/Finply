@@ -10,8 +10,9 @@ from routers.risk import router as risk_router
 from routers.assistant import router as assistant_router
 from routers.research import router as research_router
 from routers.backtest import router as backtest_router
+from routers.scenario import router as scenario_router
 
-app = FastAPI(title="Sentinel AI Financial Sandbox", version="1.0.0")
+app = FastAPI(title="Finply AI Financial Sandbox", version="1.0.0")
 
 # CORS middleware for frontend
 app.add_middleware(
@@ -32,10 +33,11 @@ app.include_router(risk_router)
 app.include_router(assistant_router)
 app.include_router(research_router)
 app.include_router(backtest_router)
+app.include_router(scenario_router)
 
 @app.get("/")
 async def root():
-    return {"message": "Welcome to Sentinel AI Financial Sandbox"}
+    return {"message": "Welcome to Finply AI Financial Sandbox"}
 
 @app.get("/health")
 async def health_check():

@@ -14,6 +14,7 @@ import {
   DocumentMagnifyingGlassIcon
 } from '@heroicons/react/24/outline';
 import { BeakerIcon } from '@heroicons/react/24/outline';
+import { SparklesIcon } from '@heroicons/react/24/outline';
 
 interface SidebarProps {
   activeTab: string;
@@ -29,6 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
     { id: 'analysis', label: 'Technical Analysis', icon: ChartBarIcon },
     { id: 'predictions', label: 'AI Predictions', icon: MagnifyingGlassIcon },
     { id: 'backtest', label: 'Backtesting Lab', icon: BeakerIcon },
+    { id: 'scenario', label: 'Scenario Lab', icon: SparklesIcon },
     { id: 'research', label: 'Research Memo', icon: DocumentMagnifyingGlassIcon },
     { id: 'assistant', label: 'AI Copilot', icon: ChatBubbleLeftRightIcon },
     { id: 'news', label: 'News Intelligence', icon: NewspaperIcon },
@@ -39,7 +41,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
 
   return (
     <div className="fixed left-0 top-0 h-screen w-64 overflow-y-auto bg-gray-900 p-5 text-white">
-      <h2 className="text-xl font-bold mb-8 text-blue-400">Sentinel</h2>
+      <h2 className="text-xl font-bold mb-8 text-blue-400">Finply</h2>
 
       <ul className="space-y-2">
         {menuItems.map((item) => {

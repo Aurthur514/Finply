@@ -1,11 +1,11 @@
 #!/bin/bash
 
-# Health check script for Sentinel AI Financial Sandbox
+# Health check script for Finply AI Financial Sandbox
 
 BACKEND_URL="http://localhost:8000"
 FRONTEND_URL="http://localhost:3000"
 
-echo "🔍 Checking Sentinel AI Financial Sandbox health..."
+echo "🔍 Checking Finply AI Financial Sandbox health..."
 
 # Check backend
 echo "Checking backend API..."

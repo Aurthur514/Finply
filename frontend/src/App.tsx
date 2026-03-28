@@ -22,6 +22,7 @@ import TechnicalAnalysis from './components/TechnicalAnalysis';
 import TradingPanel from './components/TradingPanel';
 import Watchlist from './components/Watchlist';
 import BacktestingDashboard from './components/BacktestingDashboard';
+import ScenarioLab from './components/ScenarioLab';
 
 interface NewsItem {
   title: string;
@@ -80,14 +81,14 @@ function App() {
 
   const loadUser = useCallback(async () => {
     try {
-      const stored = localStorage.getItem('sentinel_user_id');
+      const stored = localStorage.getItem('finply_user_id') || localStorage.getItem('sentinel_user_id');
       if (stored) {
         setUserId(Number(stored));
         return;
       }
 
-      const response = await tradingAPI.createUser('Sentinel User', 'user@sentinel.local', 100000);
-      localStorage.setItem('sentinel_user_id', String(response.data.user_id));
+      const response = await tradingAPI.createUser('Finply User', 'user@finply.local', 100000);
+      localStorage.setItem('finply_user_id', String(response.data.user_id));
       setUserId(response.data.user_id);
     } catch (error: any) {
       setAppError(error?.response?.data?.detail || error.message || 'Unable to create paper trading account');
@@ -315,7 +316,7 @@ function App() {
       .slice(0, 3) || [];
   const dashboardChange = realizedPnL + unrealizedPnL;
   const dashboardChangePercent = totalValue > 0 ? (dashboardChange / Math.max(totalValue - dashboardChange, 1)) * 100 : 0;
-  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'risk', 'research', 'backtest'].includes(activeTab);
+  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'risk', 'research', 'backtest', 'scenario'].includes(activeTab);
   const selectedInWatchlist = watchlist.some((item) => item.symbol === selectedSymbol);
 
   const openBuyForSelected = () => stageTrade(selectedSymbol, 'buy');
@@ -342,7 +343,7 @@ function App() {
           <>
             <header className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
               <div>
-                <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Sentinel AI Financial Sandbox</div>
+                <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Finply AI Financial Sandbox</div>
                 <h1 className="text-3xl font-semibold text-slate-950">Interactive paper trading workspace</h1>
               </div>
               <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
@@ -596,6 +597,25 @@ function App() {
         {activeTab === 'backtest' && (
           <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
             <BacktestingDashboard defaultSymbol={selectedSymbol} />
+            <SelectedAssetRail
+              symbol={selectedSymbol}
+              latestPrice={latestPrice}
+              latestQuoteSource={latestQuoteSource}
+              inWatchlist={selectedInWatchlist}
+              disableTrading={isOfflinePrice}
+              onBuy={openBuyForSelected}
+              onSell={openSellForSelected}
+              onOpenAnalysis={() => setActiveTab('analysis')}
+              onOpenPredictions={() => setActiveTab('predictions')}
+              onOpenResearch={() => setActiveTab('research')}
+              onToggleWatchlist={toggleSelectedWatchlist}
+            />
+          </div>
+        )}
+
+        {activeTab === 'scenario' && (
+          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
+            <ScenarioLab defaultSymbol={selectedSymbol} />
             <SelectedAssetRail
               symbol={selectedSymbol}
               latestPrice={latestPrice}

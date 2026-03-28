@@ -1,6 +1,6 @@
-# Sentinel AI Financial Sandbox
+# Finply AI Financial Sandbox
 
-Sentinel is a full-stack financial sandbox for paper trading, market monitoring, technical analysis, sentiment research, macro-aware recommendations, and risk simulation. It is designed to stay usable even when free market-data providers are slow or unavailable, with explicit provider health and offline-fallback handling.
+Finply is a full-stack financial sandbox for paper trading, market monitoring, technical analysis, sentiment research, macro-aware recommendations, and risk simulation. It is designed to stay usable even when free market-data providers are slow or unavailable, with explicit provider health and offline-fallback handling.
 
 ## Stack
 
@@ -24,7 +24,7 @@ Sentinel is a full-stack financial sandbox for paper trading, market monitoring,
 
 - Stock data uses a provider chain instead of trusting a single free source:
   - India symbols such as `TCS`, `INFY`, and `RELIANCE` try `NSE` first where available
-  - Other stock paths use `Twelve Data -> FMP -> Alpha Vantage -> Yahoo Finance -> Sentinel Offline Feed`
+  - Other stock paths use `Twelve Data -> FMP -> Alpha Vantage -> Yahoo Finance -> Finply Offline Feed`
 - The UI surfaces stock-data health and quote provenance so fallback prices are not silently presented as live.
 - Technical Analysis uses native-currency display for non-USD instruments when available.
 - Sentiment tooling includes:
@@ -121,7 +121,7 @@ OPENAI_TTS_VOICE=alloy
 
 ## Market Data Notes
 
-- Stock data reliability depends on external free providers, so Sentinel uses provider chaining and fallback behavior instead of assuming one source will always work.
+- Stock data reliability depends on external free providers, so Finply uses provider chaining and fallback behavior instead of assuming one source will always work.
 - Stock provider health is available from `GET /stocks/market/providers/health`.
 - Stock search can use `Financial Modeling Prep` when `FMP_API_KEY` is configured.
 - India symbols such as `TCS`, `INFY`, and `RELIANCE` are normalized for cleaner search and display.

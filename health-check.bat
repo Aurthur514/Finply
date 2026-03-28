@@ -1,10 +1,10 @@
 @echo off
-REM Health check script for Sentinel AI Financial Sandbox
+REM Health check script for Finply AI Financial Sandbox
 
 set BACKEND_URL=http://localhost:8000
 set FRONTEND_URL=http://localhost:3000
 
-echo 🔍 Checking Sentinel AI Financial Sandbox health...
+echo 🔍 Checking Finply AI Financial Sandbox health...
 
 REM Check backend
 echo Checking backend API...
