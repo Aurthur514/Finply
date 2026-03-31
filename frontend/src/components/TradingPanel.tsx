@@ -74,7 +74,7 @@ const TradingPanel: React.FC<TradingPanelProps> = ({
     !(isOfflinePrice && orderType === 'market');
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm trading-panel">
       <div className="mb-5 flex items-start justify-between">
         <div>
           <h3 className="text-lg font-semibold text-slate-900">Order Panel</h3>

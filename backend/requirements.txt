@@ -12,3 +12,4 @@ ccxt==4.4.63
 ta==0.11.0
 psycopg[binary]==3.2.5
 playwright==1.55.0
+finnhub-python==2.4.20

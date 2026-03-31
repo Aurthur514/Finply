@@ -266,7 +266,7 @@ const AssistantPanel: React.FC<AssistantPanelProps> = ({ selectedSymbol, userId 
   };
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="rounded-2xl border border-slate-200 bg-white shadow-sm ai-assistant">
       <div className="border-b border-slate-200 px-5 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

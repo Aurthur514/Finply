@@ -23,6 +23,9 @@ import TradingPanel from './components/TradingPanel';
 import Watchlist from './components/Watchlist';
 import BacktestingDashboard from './components/BacktestingDashboard';
 import ScenarioLab from './components/ScenarioLab';
+import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline';
+import Onboarding from './components/Onboarding';
+import LoadingSpinner, { LoadingCard, LoadingGrid } from './components/Loading';
 
 interface NewsItem {
   title: string;
@@ -69,6 +72,8 @@ function App() {
   const [providerHealth, setProviderHealth] = useState<ProviderHealth | null>(null);
   const [sentimentSummary, setSentimentSummary] = useState<NewsSummary | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const latestQuoteRequestId = useRef(0);
 
   const pushToast = useCallback((message: string, tone: 'success' | 'error') => {
@@ -206,6 +211,16 @@ function App() {
   }, [loadUser]);
 
   useEffect(() => {
+    // Check if user has completed onboarding
+    const onboardingCompleted = localStorage.getItem('finply_onboarding_completed');
+    if (!onboardingCompleted && userId) {
+      // Show onboarding after a brief delay to let the app load
+      const timer = setTimeout(() => setShowOnboarding(true), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [userId]);
+
+  useEffect(() => {
     setLatestQuote(undefined);
     loadNews();
     loadSelectedPrice();
@@ -316,7 +331,7 @@ function App() {
       .slice(0, 3) || [];
   const dashboardChange = realizedPnL + unrealizedPnL;
   const dashboardChangePercent = totalValue > 0 ? (dashboardChange / Math.max(totalValue - dashboardChange, 1)) * 100 : 0;
-  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'risk', 'research', 'backtest', 'scenario'].includes(activeTab);
+  const showWorkspaceHeader = ['dashboard', 'trading', 'portfolio', 'history', 'watchlist', 'risk', 'research', 'backtest', 'scenario'].includes(activeTab);
   const selectedInWatchlist = watchlist.some((item) => item.symbol === selectedSymbol);
 
   const openBuyForSelected = () => stageTrade(selectedSymbol, 'buy');
@@ -336,116 +351,220 @@ function App() {
   };
 
   return (
-    <div className="h-screen overflow-hidden bg-slate-100">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
-      <main className="ml-64 h-screen overflow-y-auto p-6">
-        {showWorkspaceHeader && (
-          <>
-            <header className="mb-6 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <div className="text-sm uppercase tracking-[0.2em] text-slate-500">Finply AI Financial Sandbox</div>
-                <h1 className="text-3xl font-semibold text-slate-950">Interactive paper trading workspace</h1>
-              </div>
-              <div className="rounded-2xl bg-white px-4 py-3 shadow-sm">
-                <div className="text-xs uppercase tracking-wide text-slate-500">Portfolio snapshot</div>
-                <div className="mt-1 text-2xl font-semibold text-slate-900">${totalValue.toFixed(2)}</div>
-                <div className={`text-sm ${dashboardChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                  {dashboardChange >= 0 ? '+' : ''}${dashboardChange.toFixed(2)} ({dashboardChangePercent.toFixed(2)}%)
-                </div>
-              </div>
-            </header>
-
-            <div className="mb-6">
-              <StockSearch onSelectStock={setSelectedSymbol} selectedSymbol={selectedSymbol} />
-            </div>
-          </>
-        )}
-
-        <div className="mb-6 rounded-2xl border border-slate-200 bg-white px-4 py-4 shadow-sm">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">Active Asset</div>
-              <div className="mt-1 flex items-center gap-3">
-                <div className="text-2xl font-semibold text-slate-950">{selectedSymbol}</div>
-                <div className="rounded-full bg-slate-100 px-3 py-1 text-sm text-slate-600">
-                  {hasLatestPrice ? `$${latestPrice.toFixed(2)}` : 'Price unavailable'}
-                </div>
-                <div className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                  isOfflinePrice ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'
-                }`}>
-                  {hasLatestPrice ? latestQuoteSource : 'Waiting for quote'}
-                </div>
-              </div>
-              {isOfflinePrice && (
-                <div className="mt-2 text-sm text-amber-700">
-                  Price is from fallback market data and may not match the live exchange.
-                </div>
-              )}
-              <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-                <span
-                  className={`rounded-full px-3 py-1 font-semibold ${
-                    !providerHealth
-                      ? 'bg-slate-100 text-slate-700'
-                      : providerHealth.status === 'healthy'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-amber-100 text-amber-800'
-                  }`}
-                >
-                  Stock Data {providerHealthLabel}
-                </span>
-                {liveProviders.length > 0 && (
-                  <span className="text-slate-500">Live providers: {liveProviders.join(', ')}</span>
-                )}
-                {providerHealth?.status === 'degraded' && (
-                  <span className="text-amber-700">Fallbacks may appear for some stock symbols.</span>
-                )}
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
+    <div className="min-h-screen bg-slate-50">
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div className="fixed inset-0 bg-black bg-opacity-25" onClick={() => setSidebarOpen(false)} />
+          <div className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 shadow-xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-700">
+              <h2 className="text-xl font-bold text-blue-400">Finply</h2>
               <button
-                onClick={openBuyForSelected}
-                disabled={isOfflinePrice}
-                className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+                onClick={() => setSidebarOpen(false)}
+                className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
               >
-                Buy {selectedSymbol}
-              </button>
-              <button
-                onClick={openSellForSelected}
-                disabled={isOfflinePrice}
-                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:cursor-not-allowed disabled:bg-slate-400"
-              >
-                Sell {selectedSymbol}
-              </button>
-              <button
-                onClick={() => setActiveTab('analysis')}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Analysis
-              </button>
-              <button
-                onClick={() => setActiveTab('predictions')}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                AI View
-              </button>
-              <button
-                onClick={() => setActiveTab('research')}
-                className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                Research Memo
+                <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
+            <Sidebar activeTab={activeTab} setActiveTab={(tab) => { setActiveTab(tab); setSidebarOpen(false); }} />
           </div>
         </div>
+      )}
 
-        {appError && <div className="mb-6 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{appError}</div>}
+      {/* Desktop sidebar */}
+      <div className="hidden lg:block fixed left-0 top-0 bottom-0 w-64">
+        <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      </div>
 
-        {activeTab === 'dashboard' && (
-          <div className="space-y-6">
-            <div className="grid gap-6 xl:grid-cols-[1.35fr,0.65fr]">
-              <StockChart symbol={selectedSymbol} onTradeIntent={stageTrade} />
+      <main className="lg:ml-64 min-h-screen">
+        {/* Mobile header */}
+        <div className="lg:hidden bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          >
+            <Bars3Icon className="h-6 w-6" />
+          </button>
+          <h1 className="text-lg font-bold text-slate-900">Finply</h1>
+          <div className="w-10" /> {/* Spacer for centering */}
+        </div>
+
+        {showWorkspaceHeader && (
+          <header className="bg-white border-b border-slate-200 px-4 py-6 lg:px-6">
+            <div className="max-w-7xl mx-auto">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                <div>
+                  <div className="text-sm uppercase tracking-wider text-slate-500 mb-1">Finply AI Financial Sandbox</div>
+                  <h1 className="text-2xl lg:text-3xl font-bold text-slate-900">Interactive Trading Workspace</h1>
+                  <p className="text-sm text-slate-600 mt-1">Paper trading with AI-powered insights</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-200 portfolio-metrics">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Portfolio Value</div>
+                    <div className="text-xl font-bold text-slate-900">${totalValue.toFixed(2)}</div>
+                    <div className={`text-sm font-medium ${dashboardChange >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {dashboardChange >= 0 ? '+' : ''}${dashboardChange.toFixed(2)} ({dashboardChangePercent.toFixed(2)}%)
+                    </div>
+                  </div>
+                  <div className="bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
+                    <div className="text-xs uppercase tracking-wide text-slate-500">Cash Balance</div>
+                    <div className="text-xl font-bold text-slate-900">${cashBalance.toFixed(2)}</div>
+                    <div className="text-sm text-slate-600">Available to trade</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+        )}
+
+        <div className="max-w-7xl mx-auto px-4 py-6 lg:px-6 space-y-6">
+          {showWorkspaceHeader && (
+            <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm">
+              <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+                <div className="flex-1">
+                  <StockSearch onSelectStock={setSelectedSymbol} selectedSymbol={selectedSymbol} />
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={openBuyForSelected}
+                    disabled={isOfflinePrice}
+                    className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Buy {selectedSymbol}
+                  </button>
+                  <button
+                    onClick={openSellForSelected}
+                    disabled={isOfflinePrice}
+                    className="inline-flex items-center px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 disabled:bg-slate-300 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Sell {selectedSymbol}
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('analysis')}
+                    className="inline-flex items-center px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Analysis
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('predictions')}
+                    className="inline-flex items-center px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    AI View
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {appError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+              <div className="flex items-center">
+                <div className="text-red-600 text-sm font-medium">{appError}</div>
+              </div>
+            </div>
+          )}
+
+          {/* Dashboard Tab */}
+          {activeTab === 'dashboard' && (
+            <div className="space-y-6">
+              {/* Main chart and signals */}
+              <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+                <div className="xl:col-span-2">
+                  {loadingTradingData ? (
+                    <LoadingCard title="Loading Chart Data..." className="h-96" />
+                  ) : (
+                    <StockChart symbol={selectedSymbol} onTradeIntent={stageTrade} />
+                  )}
+                </div>
+                <div className="space-y-6">
+                  <AISignals onUseSignal={stageTrade} />
+                  <Watchlist
+                    items={watchlist}
+                    onAdd={handleAddWatchlist}
+                    onRemove={handleRemoveWatchlist}
+                    onQuickBuy={(symbol) => stageTrade(symbol, 'buy')}
+                    onSelectSymbol={setSelectedSymbol}
+                  />
+                </div>
+              </div>
+
+              {/* Trading panel and insights */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <TradingPanel
+                  userId={userId ?? 0}
+                  symbol={tradeDraft.symbol}
+                  side={tradeDraft.side}
+                  accountBalance={cashBalance}
+                  marketDataSource={latestQuoteSource}
+                  onSubmitOrder={submitOrder}
+                />
+                <div className="space-y-6">
+                  {loadingSentimentSummary ? (
+                    <LoadingCard title="Analyzing Sentiment..." />
+                  ) : (
+                    <SentimentSummaryCard summary={sentimentSummary} symbol={selectedSymbol} loading={loadingSentimentSummary} />
+                  )}
+                  {loadingNews ? (
+                    <LoadingCard title="Fetching News..." />
+                  ) : (
+                    <NewsFeed news={newsItems} symbol={selectedSymbol} loading={loadingNews} />
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Trading Tab */}
+          {activeTab === 'trading' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2 space-y-6">
+                <StockChart symbol={selectedSymbol} onTradeIntent={stageTrade} />
+                <OrderHistory trades={trades.slice(0, 8)} orders={orders.slice(0, 8)} loading={loadingTradingData} />
+              </div>
               <div className="space-y-6">
-                <AISignals onUseSignal={stageTrade} />
+                <TradingPanel
+                  userId={userId ?? 0}
+                  symbol={tradeDraft.symbol}
+                  side={tradeDraft.side}
+                  accountBalance={cashBalance}
+                  marketDataSource={latestQuoteSource}
+                  onSubmitOrder={submitOrder}
+                />
+                <SelectedAssetRail
+                  symbol={selectedSymbol}
+                  latestPrice={latestPrice}
+                  latestQuoteSource={latestQuoteSource}
+                  inWatchlist={selectedInWatchlist}
+                  disableTrading={isOfflinePrice}
+                  onBuy={openBuyForSelected}
+                  onSell={openSellForSelected}
+                  onOpenAnalysis={() => setActiveTab('analysis')}
+                  onOpenPredictions={() => setActiveTab('predictions')}
+                  onOpenResearch={() => setActiveTab('research')}
+                  onToggleWatchlist={toggleSelectedWatchlist}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Portfolio Tab */}
+          {activeTab === 'portfolio' && (
+            <PortfolioView
+              userId={userId ?? 0}
+              totalValue={totalValue}
+              cashBalance={cashBalance}
+              unrealizedPnL={unrealizedPnL}
+              realizedPnL={realizedPnL}
+              positions={portfolio.positions}
+              onSellPosition={handleSellPosition}
+            />
+          )}
+
+          {/* Watchlist Tab */}
+          {activeTab === 'watchlist' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <h2 className="text-xl font-bold text-slate-900 mb-4">My Watchlist</h2>
                 <Watchlist
                   items={watchlist}
                   onAdd={handleAddWatchlist}
@@ -455,217 +574,188 @@ function App() {
                 />
               </div>
             </div>
-            <div className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
-              <TradingPanel
-                userId={userId ?? 0}
-                symbol={tradeDraft.symbol}
-                side={tradeDraft.side}
-                accountBalance={cashBalance}
-                marketDataSource={latestQuoteSource}
-                onSubmitOrder={submitOrder}
-              />
-              <div className="space-y-6">
-                <SentimentSummaryCard summary={sentimentSummary} symbol={selectedSymbol} loading={loadingSentimentSummary} />
-                <SentimentTimelineCard summary={sentimentSummary} loading={loadingSentimentSummary} />
-                <NewsFeed news={newsItems} symbol={selectedSymbol} loading={loadingNews} />
+          )}
+
+          {/* History Tab */}
+          {activeTab === 'history' && (
+            <OrderHistory trades={trades} orders={orders} loading={loadingTradingData} />
+          )}
+
+          {/* Risk Tab */}
+          {activeTab === 'risk' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <RiskCalculator accountBalance={cashBalance} marketPrice={latestPrice} />
+              <RiskSimulator userId={userId ?? 0} />
+            </div>
+          )}
+
+          {/* Crypto Tab */}
+          {activeTab === 'crypto' && (
+            <CryptoDashboard />
+          )}
+
+          {/* Market Tab */}
+          {activeTab === 'market' && (
+            <MarketOverview />
+          )}
+
+          {/* Analysis Tab */}
+          {activeTab === 'analysis' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 analysis-tools">
+              <div className="xl:col-span-2">
+                <TechnicalAnalysis defaultSymbol={selectedSymbol} />
               </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'trading' && (
-          <div className="grid gap-6 xl:grid-cols-[0.95fr,1.05fr,0.7fr]">
-            <div className="space-y-6">
-              <StockChart symbol={selectedSymbol} onTradeIntent={stageTrade} />
-              <OrderHistory trades={trades.slice(0, 8)} orders={orders.slice(0, 8)} loading={loadingTradingData} />
-            </div>
-            <div className="space-y-6">
-              <TradingPanel
-                userId={userId ?? 0}
-                symbol={tradeDraft.symbol}
-                side={tradeDraft.side}
-                accountBalance={cashBalance}
-                marketDataSource={latestQuoteSource}
-                onSubmitOrder={submitOrder}
-              />
-              <Watchlist
-                items={watchlist}
-                onAdd={handleAddWatchlist}
-                onRemove={handleRemoveWatchlist}
-                onQuickBuy={(symbol) => stageTrade(symbol, 'buy')}
-                onSelectSymbol={setSelectedSymbol}
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
               />
             </div>
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
+          )}
 
-        {activeTab === 'portfolio' && (
-          <PortfolioView
-            userId={userId ?? 0}
-            totalValue={totalValue}
-            cashBalance={cashBalance}
-            unrealizedPnL={unrealizedPnL}
-            realizedPnL={realizedPnL}
-            positions={portfolio.positions}
-            onSellPosition={handleSellPosition}
-          />
-        )}
+          {/* Research Tab */}
+          {activeTab === 'research' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <ResearchWorkbench defaultSymbol={selectedSymbol} />
+              </div>
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
+              />
+            </div>
+          )}
 
-        {activeTab === 'history' && <OrderHistory trades={trades} orders={orders} loading={loadingTradingData} />}
+          {/* Predictions Tab */}
+          {activeTab === 'predictions' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <PredictionsDashboard defaultSymbol={selectedSymbol} />
+              </div>
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
+              />
+            </div>
+          )}
 
-        {activeTab === 'risk' && (
-          <div className="grid gap-6 xl:grid-cols-[0.9fr,1.1fr]">
-            <RiskCalculator accountBalance={cashBalance} marketPrice={latestPrice} />
-            <RiskSimulator userId={userId ?? 0} />
-          </div>
-        )}
+          {/* Backtest Tab */}
+          {activeTab === 'backtest' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <BacktestingDashboard defaultSymbol={selectedSymbol} />
+              </div>
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
+              />
+            </div>
+          )}
 
-        {activeTab === 'crypto' && <CryptoDashboard />}
+          {/* Scenario Tab */}
+          {activeTab === 'scenario' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <ScenarioLab defaultSymbol={selectedSymbol} />
+              </div>
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
+              />
+            </div>
+          )}
 
-        {activeTab === 'market' && <MarketOverview />}
+          {/* Assistant Tab */}
+          {activeTab === 'assistant' && (
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <AssistantPanel selectedSymbol={selectedSymbol} userId={userId} />
+              </div>
+              <SelectedAssetRail
+                symbol={selectedSymbol}
+                latestPrice={latestPrice}
+                latestQuoteSource={latestQuoteSource}
+                inWatchlist={selectedInWatchlist}
+                disableTrading={isOfflinePrice}
+                onBuy={openBuyForSelected}
+                onSell={openSellForSelected}
+                onOpenAnalysis={() => setActiveTab('analysis')}
+                onOpenPredictions={() => setActiveTab('predictions')}
+                onOpenResearch={() => setActiveTab('research')}
+                onToggleWatchlist={toggleSelectedWatchlist}
+              />
+            </div>
+          )}
 
-        {activeTab === 'analysis' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <TechnicalAnalysis defaultSymbol={selectedSymbol} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'research' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <ResearchWorkbench defaultSymbol={selectedSymbol} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'predictions' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <PredictionsDashboard defaultSymbol={selectedSymbol} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'backtest' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <BacktestingDashboard defaultSymbol={selectedSymbol} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'scenario' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <ScenarioLab defaultSymbol={selectedSymbol} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'assistant' && (
-          <div className="grid gap-6 xl:grid-cols-[1.1fr,0.7fr]">
-            <AssistantPanel selectedSymbol={selectedSymbol} userId={userId} />
-            <SelectedAssetRail
-              symbol={selectedSymbol}
-              latestPrice={latestPrice}
-              latestQuoteSource={latestQuoteSource}
-              inWatchlist={selectedInWatchlist}
-              disableTrading={isOfflinePrice}
-              onBuy={openBuyForSelected}
-              onSell={openSellForSelected}
-              onOpenAnalysis={() => setActiveTab('analysis')}
-              onOpenPredictions={() => setActiveTab('predictions')}
-              onOpenResearch={() => setActiveTab('research')}
-              onToggleWatchlist={toggleSelectedWatchlist}
-            />
-          </div>
-        )}
-
-        {activeTab === 'news' && <NewsFeed news={newsItems} symbol={selectedSymbol} loading={loadingNews} />}
+          {/* News Tab */}
+          {activeTab === 'news' && (
+            <NewsFeed news={newsItems} symbol={selectedSymbol} loading={loadingNews} />
+          )}
+        </div>
       </main>
 
-      <div className="fixed right-4 top-4 z-[60] space-y-3">
+      {/* Toast notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-3">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`min-w-[260px] rounded-2xl px-4 py-3 text-sm font-medium shadow-lg ${
-              toast.tone === 'success' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+            className={`min-w-[300px] rounded-xl px-4 py-3 text-sm font-medium shadow-lg ${
+              toast.tone === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
             }`}
           >
             {toast.message}
           </div>
         ))}
       </div>
+
+      {/* Onboarding */}
+      {showOnboarding && (
+        <Onboarding onComplete={() => setShowOnboarding(false)} />
+      )}
     </div>
   );
 }

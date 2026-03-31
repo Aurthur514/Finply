@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 import ta
 from sklearn.linear_model import LinearRegression
 import warnings
+import finnhub
 warnings.filterwarnings('ignore')
 
 class MarketDataService:
@@ -20,6 +21,7 @@ class MarketDataService:
     _shared_fx_cache: Dict[str, float] = {}
     _shared_data_cache: Dict[str, tuple[datetime, object]] = {}
     _shared_provider_metrics: Dict[str, Dict[str, Any]] = {}
+    _shared_finnhub = None
 
     def __init__(self):
         # Initialize exchanges for crypto data
@@ -36,9 +38,12 @@ class MarketDataService:
                 "Referer": "https://www.nseindia.com/",
             })
             MarketDataService._shared_http_session = session
+        if MarketDataService._shared_finnhub is None and os.getenv("FINNHUB_API_KEY"):
+            MarketDataService._shared_finnhub = finnhub.Client(api_key=os.getenv("FINNHUB_API_KEY"))
         self.binance = MarketDataService._shared_binance
         self.coinbase = MarketDataService._shared_coinbase
         self.http = MarketDataService._shared_http_session
+        self.finnhub = MarketDataService._shared_finnhub
 
         # Popular stocks and cryptos
         self.popular_stocks = [
@@ -525,6 +530,49 @@ class MarketDataService:
             "fx_rate": round(self._get_fx_rate_to_usd(native_currency), 4),
         }
 
+    def _fetch_stock_quote_from_finnhub(self, symbol: str) -> Optional[Dict]:
+        if not self.finnhub:
+            return None
+
+        try:
+            quote = self.finnhub.quote(symbol)
+            if not quote or 'c' not in quote:
+                return None
+
+            current_price = quote.get('c', 0)
+            previous_close = quote.get('pc', 0)
+            change = current_price - previous_close
+            change_percent = (change / previous_close) * 100 if previous_close != 0 else 0
+
+            # Get company profile for additional data
+            profile = self.finnhub.company_profile2(symbol=symbol)
+            market_cap = profile.get('marketCapitalization', 0) * 1e6 if profile else None  # Finnhub gives in millions
+            pe_ratio = None  # Not directly available
+            dividend_yield = None  # Not directly available
+
+            native_currency = self._infer_native_currency(symbol)
+            normalized_price = self._convert_value_to_usd(current_price, native_currency)
+            normalized_change = self._convert_value_to_usd(change, native_currency)
+            normalized_market_cap = self._convert_value_to_usd(market_cap, native_currency) if market_cap else None
+
+            return {
+                "symbol": symbol,
+                "price": round(normalized_price, 2),
+                "change": round(normalized_change, 2),
+                "change_percent": f"{round(change_percent, 2)}%",
+                "volume": None,  # Finnhub quote doesn't include volume
+                "market_cap": round(normalized_market_cap, 2) if normalized_market_cap else None,
+                "pe_ratio": pe_ratio,
+                "dividend_yield": dividend_yield,
+                "timestamp": datetime.now().isoformat(),
+                "source": "Finnhub",
+                "currency": "USD",
+                "native_currency": native_currency,
+                "fx_rate": round(self._get_fx_rate_to_usd(native_currency), 4),
+            }
+        except Exception:
+            return None
+
     def _fetch_stock_history_from_twelve_data(self, symbol: str, period: str, interval: str) -> Optional[pd.DataFrame]:
         if not self.twelve_data_api_key:
             return None
@@ -939,6 +987,7 @@ class MarketDataService:
                 ("twelve_data", lambda: self._fetch_stock_quote_from_twelve_data(provider_symbol), 1.8),
                 ("fmp", lambda: self._fetch_stock_quote_from_fmp(provider_symbol), 1.8),
                 ("alpha_vantage", lambda: self._fetch_stock_quote_from_alpha_vantage(provider_symbol), 2.0),
+                ("finnhub", lambda: self._fetch_stock_quote_from_finnhub(provider_symbol), 2.0),
                 ("yahoo_finance", _fetch_quote_from_yahoo, 2.5),
             ]
             payload = None

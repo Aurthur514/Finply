@@ -33,6 +33,16 @@ Finply is a full-stack financial sandbox for paper trading, market monitoring, t
   - `News Intelligence`
   - `Research Memo`
 - Trading actions are constrained more conservatively when the app is relying on offline fallback pricing.
+- **Enhanced UX**: Organized navigation with collapsible categories, mobile-responsive design, onboarding tour for new users, improved loading states, and better visual hierarchy.
+
+## User Experience Features
+
+- **Organized Navigation**: Sidebar with collapsible categories grouping related features (Overview, Trading, Analysis & Research, Tools & Intelligence)
+- **Mobile Responsive**: Mobile-friendly sidebar overlay and responsive grid layouts that work on all screen sizes
+- **Onboarding Tour**: Guided introduction for new users highlighting key features and navigation
+- **Loading States**: Skeleton screens and loading indicators for better perceived performance
+- **Visual Hierarchy**: Improved spacing, typography, and color usage for better information architecture
+- **Accessibility**: Better keyboard navigation, focus management, and semantic HTML structure
 
 ## Project Layout
 
